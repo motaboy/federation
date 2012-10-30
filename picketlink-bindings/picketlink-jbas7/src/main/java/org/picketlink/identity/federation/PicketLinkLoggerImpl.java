@@ -1578,4 +1578,11 @@ public final class PicketLinkLoggerImpl implements PicketLinkLogger {
         ROOT_LOGGER.authorizationManagerError(e);
     }
 
+    public ProcessingException samlHandlerAssertionConsumerServiceNotFoundError() {
+        return MESSAGES.samlHandlerAssertionConsumerServiceNotFoundError();
+    }
+
+    public ProcessingException samlHandlerBothAssertionConsumerServiceUrlAndIndex() {
+        return new ProcessingException("AuthnRequest cannot have both AssertionConsumerServiceUrl and AssertionConsumerServiceIndex");
+    }
 }

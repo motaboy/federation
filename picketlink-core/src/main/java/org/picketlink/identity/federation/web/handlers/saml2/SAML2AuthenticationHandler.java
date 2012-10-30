@@ -73,6 +73,7 @@ import org.picketlink.identity.federation.saml.v2.assertion.NameIDType;
 import org.picketlink.identity.federation.saml.v2.assertion.StatementAbstractType;
 import org.picketlink.identity.federation.saml.v2.assertion.SubjectType;
 import org.picketlink.identity.federation.saml.v2.assertion.SubjectType.STSubType;
+import org.picketlink.identity.federation.saml.v2.metadata.IndexedEndpointType;
 import org.picketlink.identity.federation.saml.v2.metadata.EndpointType;
 import org.picketlink.identity.federation.saml.v2.metadata.SPSSODescriptorType;
 import org.picketlink.identity.federation.saml.v2.protocol.AuthnRequestType;
@@ -165,8 +166,17 @@ public class SAML2AuthenticationHandler extends BaseSAML2Handler {
             if (art == null)
                 throw logger.samlHandlerAuthnRequestIsNull();
 
-            String destination = art.getAssertionConsumerServiceURL().toASCIIString();
-            
+            // AssertionConsumerServiceURL and AssertionConsumerServiceIndex are mutually exclusive
+            if (art.getAssertionConsumerServiceURL() != null && art.getAttributeConsumingServiceIndex() != null)
+                throw logger.samlHandlerBothAssertionConsumerServiceUrlAndIndex();
+
+            EndpointType assertionConsumerEndpoint = getAssertionConsumerServiceEndpoint(art, request);
+
+            String destination = assertionConsumerEndpoint.getLocation().toASCIIString();
+            if(destination == null) {
+                throw logger.samlHandlerAssertionConsumerServiceNotFoundError();
+            }
+
             logger.trace("Destination = " + destination);
 
             response.setDestination(destination);
@@ -203,6 +213,8 @@ public class SAML2AuthenticationHandler extends BaseSAML2Handler {
                     identityServer.stack().register(session.getId(), participantLogoutURL, isPost);
                 }
 
+                // TODO Handle protocol binding provided by the metadata when the request contains AssertionConsumerServiceIndex
+                // TODO Handle the possible protocolBinding provided by the request when it contains an AssertionConsumerServiceUrl
                 // Check whether we use POST binding for response
                 boolean strictPostBinding = request.getOptions().get(GeneralConstants.SAML_IDP_STRICT_POST_BINDING) != null
                         && (Boolean) request.getOptions().get(GeneralConstants.SAML_IDP_STRICT_POST_BINDING);
@@ -226,7 +238,16 @@ public class SAML2AuthenticationHandler extends BaseSAML2Handler {
             if (userPrincipal == null)
                 userPrincipal = httpContext.getRequest().getUserPrincipal();
 
-            String assertionConsumerURL = art.getAssertionConsumerServiceURL().toASCIIString();
+            EndpointType assertionConsumerEndpoint = getAssertionConsumerServiceEndpoint(art, request);
+
+            String assertionConsumerURL = assertionConsumerEndpoint.getLocation().toASCIIString();
+
+            if(assertionConsumerURL == null) {
+                throw logger.samlHandlerAssertionConsumerServiceNotFoundError();
+            }
+
+            logger.trace("assertionConsumerURL = " + assertionConsumerURL);
+
             List<String> roles = (List<String>) session.getAttribute(GeneralConstants.ROLES_ID);
             String identityURL = request.getIssuer().getValue();
             Map<String, Object> attribs = (Map<String, Object>) request.getOptions().get(GeneralConstants.ATTRIBUTES);
@@ -335,9 +356,60 @@ public class SAML2AuthenticationHandler extends BaseSAML2Handler {
                 return null;
             }
 
-            // Use first endpoint for now (Maybe later we can find logoutType according to bindingType from SAMLRequest)
+            // Use first endpoint for now (Maybe later we can find logoutType according to protocolBinding from SAMLRequest)
             EndpointType logoutEndpoint = logoutEndpoints.get(0);
             return logoutEndpoint.getLocation().toASCIIString();
+        }
+
+        private EndpointType getAssertionConsumerServiceEndpoint(AuthnRequestType art, SAML2HandlerRequest request) {
+            URI assertionConsumerServiceUrl = art.getAssertionConsumerServiceURL();
+            if(assertionConsumerServiceUrl != null) {
+                return new EndpointType(art.getProtocolBinding(), assertionConsumerServiceUrl);
+            }
+
+            SPSSODescriptorType spMetadata = (SPSSODescriptorType)request.getOptions().get(GeneralConstants.SP_SSO_METADATA_DESCRIPTOR);
+
+            if (spMetadata == null) {
+                return null;
+            }
+
+            List<IndexedEndpointType> assertionConsumerServiceEndpoints = spMetadata.getAssertionConsumerService();
+
+            if (assertionConsumerServiceEndpoints == null || assertionConsumerServiceEndpoints.size() == 0) {
+                return null;
+            }
+
+            IndexedEndpointType assertionConsumerServiceEndpoint = null;
+
+            Integer index = art.getAssertionConsumerServiceIndex();
+
+            if(index != null) {
+                // If index is defined search by index
+                for(IndexedEndpointType currentAssertionConsumerServiceEndpoint: assertionConsumerServiceEndpoints) {
+                    Integer endpointIndex = currentAssertionConsumerServiceEndpoint.getIndex();
+
+                    if (endpointIndex == index) {
+                        assertionConsumerServiceEndpoint = currentAssertionConsumerServiceEndpoint;
+                        // return null if not found
+                        break;
+                    }
+                }
+            } else {
+                // If index is not defined search the default endpoint
+                for(IndexedEndpointType currentAssertionConsumerServiceEndpoint: assertionConsumerServiceEndpoints) {
+                    // Ignore the possible protocolBinding specified in the request and use the default (is this correct?)
+                    if (currentAssertionConsumerServiceEndpoint.isIsDefault()) {
+                        assertionConsumerServiceEndpoint = currentAssertionConsumerServiceEndpoint;
+                        break;
+                    }
+                }
+
+                if(assertionConsumerServiceEndpoint == null) {
+                    // TODO should we select one matching the possible ProtocolBinding that comes from the request? 
+                    assertionConsumerServiceEndpoint = assertionConsumerServiceEndpoints.get(0);
+                }
+            }
+            return assertionConsumerServiceEndpoint;
         }
     }
 

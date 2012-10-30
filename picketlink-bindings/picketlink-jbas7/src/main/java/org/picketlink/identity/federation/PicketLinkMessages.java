@@ -493,4 +493,9 @@ public interface PicketLinkMessages {
     @Message(id = 173, value = "The security domain name could not be found. Check your jboss-web.xml.")
     ConfigurationException securityDomainNotFound();
 
+    @Message(id = 174, value = "AssertionConsumerService cannot be found")
+    ProcessingException samlHandlerAssertionConsumerServiceNotFoundError();
+
+    @Message(id = 175, value = "AuthnRequest cannot have both AssertionConsumerServiceUrl and AssertionConsumerServiceIndex")
+    ProcessingException samlHandlerBothAssertionConsumerServiceUrlAndIndex();
 }

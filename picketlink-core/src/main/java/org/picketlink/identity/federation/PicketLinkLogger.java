@@ -1289,4 +1289,7 @@ public interface PicketLinkLogger {
 
     void authorizationManagerError(ConfigurationException e);
 
+    ProcessingException samlHandlerAssertionConsumerServiceNotFoundError();
+
+    ProcessingException samlHandlerBothAssertionConsumerServiceUrlAndIndex();
 }

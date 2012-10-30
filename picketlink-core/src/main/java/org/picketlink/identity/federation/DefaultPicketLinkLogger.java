@@ -2321,4 +2321,19 @@ public class DefaultPicketLinkLogger implements PicketLinkLogger {
         error("Error loading AuthorizationManager.", e);
     }
 
+    /* (non-Javadoc)
+     * @see org.picketlink.identity.federation.PicketLinkLogger#samlHandlerAssertionConsumerServiceNotFound()
+     */
+    @Override
+    public ProcessingException samlHandlerAssertionConsumerServiceNotFoundError() {
+        return new ProcessingException("AssertionConsumerService cannot be found.");
+    }
+
+    /* (non-Javadoc)
+     * @see org.picketlink.identity.federation.PicketLinkLogger#samlHandlerBothAssertionConsumerServiceUrlAndIndex()
+     */
+    @Override
+    public ProcessingException samlHandlerBothAssertionConsumerServiceUrlAndIndex() {
+        return new ProcessingException("AuthnRequest cannot have both AssertionConsumerServiceUrl and AssertionConsumerServiceIndex");
+    }
 }
