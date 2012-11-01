@@ -68,9 +68,9 @@ import org.w3c.dom.Element;
  * @since Dec 14, 2010
  */
 public class SAMLEntityDescriptorParser extends AbstractDescriptorParser implements ParserNamespaceSupport {
-    
+
     private static final PicketLinkLogger logger = PicketLinkLoggerFactory.getLogger();
-    
+
     private final String EDT = JBossSAMLConstants.ENTITY_DESCRIPTOR.get();
 
     public Object parse(XMLEventReader xmlEventReader) throws ParsingException {
@@ -522,6 +522,8 @@ public class SAMLEntityDescriptorParser extends AbstractDescriptorParser impleme
         Attribute isDefault = startElement.getAttributeByName(new QName(JBossSAMLConstants.ISDEFAULT.get()));
         if (isDefault != null) {
             endpoint.setIsDefault(Boolean.parseBoolean(StaxParserUtil.getAttributeValue(isDefault)));
+        } else {
+            endpoint.setIsDefault(false);
         }
         Attribute index = startElement.getAttributeByName(new QName(JBossSAMLConstants.INDEX.get()));
         if (index != null) {
